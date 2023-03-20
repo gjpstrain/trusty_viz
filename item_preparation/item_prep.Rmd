@@ -28,9 +28,9 @@ library(ggpubr)
  - Single type (line) with 2 levels, BBC and minimal (90 of each plot)
  - 2 types (line and bar) each with 2 levels (45 of each plot)
  
- # Definitely doing line though, so let's do dummy data for that
- 
-```{r line_graph_data, include=FALSE}
+# Definitely doing line though, so let's do that first 
+
+```{r line_graph_bbc, include=FALSE}
 
 line_data <- (1:90)
 
@@ -40,29 +40,73 @@ BBC_line_function <- function() {
   values <- runif(6, min = 1, max = 101)
   line_df <- data.frame(years, values)
   
-  line_plot <-ggplot(aes(x = years, y = values, group = 1), data = line_df) +
+  line_plot <- ggplot(aes(x = years, y = values, group = 1), data = line_df) +
               geom_line(size = 1) +
               geom_hline(yintercept = 0, size = 1, colour="#333333") +
               scale_colour_manual(values = c("#FAAB18", "#1380A1")) +
               bbc_style() +
-              labs(title ="Living longer",
-              subtitle = "Life expectancy in China and the US")
+              labs(title = "Wet Wet Wet",
+              subtitle = "% of days of the year it rained in Manchester")
 
   
   finalise_plot(plot_name = line_plot,
                 save_filepath = paste0("all_plots/",counter, "A", ".png"),
-                source = "df")
+                source = "",
+                logo_image_path = "bbc_logo.png")
+}
+```
+
+```{r line_graph_min, include=FALSE}
+
+line_data <- (1:90)
+
+min_line_function <- function() {
+  set.seed(counter)
+  years <- c("1996", "1997", "1998", "1999", "2000", "2001")
+  values <- runif(6, min = 1, max = 101)
+  line_df <- data.frame(years, values)
+  
+  line_plot <- ggplot(aes(x = years, y = values, group = 1), data = line_df) +
+              geom_line(size = 1) +
+              geom_hline(yintercept = 0, size = 1, colour="#333333") +
+              theme_minimal() +
+              theme(plot.title = element_text(size = 28),
+                    plot.subtitle = element_text(size = 22),
+                    axis.text = element_text(size = 18)) +
+              labs(title = "Wet Wet Wet",
+              subtitle = "% of days of the year it rained in Manchester",
+              x = "",
+              y = "")
+
+  ggsave(line_plot, filename = paste0(counter, "B", ".png"),
+         device = "png",
+         bg = "white",
+         path = "all_plots",
+         units = "px",
+         width = 2666,
+         height = 1875)
 }
 ```
  
-```{r}
+ 
+```{r plot_generator}
+counter = 1
+
 for (value in line_data) {
   BBC_line_function()
   if (counter > 0) {
     counter = counter + 1
   }
 }
+
 counter = 1
+
+for (value in line_data) {
+  min_line_function()
+  if (counter > 0) {
+    counter = counter + 1
+  }
+}
 ```
 
  
