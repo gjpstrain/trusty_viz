@@ -18,82 +18,100 @@ library(forcats)
 library(ggalt)
 library(scales)
 library(grid)
-library(bbplot)
 library(tidyr)
-library(ggpubr)
+library(ggdist)
+library(gtools)
 ```
 
-# Options for graphs included:
 
- - Single type (line) with 2 levels, BBC and minimal (90 of each plot)
- - 2 types (line and bar) each with 2 levels (45 of each plot)
- 
-# Definitely doing line though, so let's do that first 
+```{r bar-plots}
+plot_series <- (1:45)
 
-```{r line_graph_bbc, include=FALSE}
-
-line_data <- (1:90)
-
-BBC_line_function <- function() {
+bar_func <- function(ceiling, gran) {
+  
   set.seed(counter)
-  years <- c("1996", "1997", "1998", "1999", "2000", "2001")
-  values <- runif(6, min = 1, max = 101)
-  line_df <- data.frame(years, values)
+  x <- (1:ceiling)
+  y <- runif(ceiling, 10, 100)
+  data <- data.frame(x,y)
   
-  line_plot <- ggplot(aes(x = years, y = values, group = 1), data = line_df) +
-              geom_line(size = 1) +
-              geom_hline(yintercept = 0, size = 1, colour="#333333") +
-              scale_colour_manual(values = c("#FAAB18", "#1380A1")) +
-              bbc_style() +
-              labs(title = "Wet Wet Wet",
-              subtitle = "% of days of the year it rained in Manchester")
-
+  min_x <- data %>%
+    slice_min(y)
   
-  finalise_plot(plot_name = line_plot,
-                save_filepath = paste0("all_plots/",counter, "A", ".png"),
-                source = "",
-                logo_image_path = "bbc_logo.png")
+  correct_low <- min_x$x
+  
+  max_x <- data %>%
+    slice_max(y)
+  
+  correct_high <- max_x$x
+  
+  bar_plot <- ggplot(aes(x, y), data = data) +
+    geom_bar(stat = "identity") +
+    labs(x = "",
+         y = "") +
+    theme(axis.text.x = element_blank()) +
+    theme_ggdist() +
+    ylim(0,100) +
+    xlim(0, ceiling)
+    
+  ggsave(bar_plot, filename=paste0(counter, "_bar_", gran, "_l_", correct_low, "_h_", correct_high, ".png"), 
+       device = "png",
+       bg = "white",
+       path = "all_plots",
+       units = "px",
+       width = 1000,
+       height = 1000,  
+  )
+  
 }
+
 ```
 
-```{r line_graph_min, include=FALSE}
-
-line_data <- (1:90)
-
-min_line_function <- function() {
+```{r line-plots}
+line_func <- function(ceiling, gran) {
+  
   set.seed(counter)
-  years <- c("1996", "1997", "1998", "1999", "2000", "2001")
-  values <- runif(6, min = 1, max = 101)
-  line_df <- data.frame(years, values)
+  x <- (1:ceiling)
+  y <- runif(ceiling, 10, 100)
+  data <- data.frame(x,y)
   
-  line_plot <- ggplot(aes(x = years, y = values, group = 1), data = line_df) +
-              geom_line(size = 1) +
-              geom_hline(yintercept = 0, size = 1, colour="#333333") +
-              theme_minimal() +
-              theme(plot.title = element_text(size = 28),
-                    plot.subtitle = element_text(size = 22),
-                    axis.text = element_text(size = 18)) +
-              labs(title = "Wet Wet Wet",
-              subtitle = "% of days of the year it rained in Manchester",
-              x = "",
-              y = "")
-
-  ggsave(line_plot, filename = paste0(counter, "B", ".png"),
-         device = "png",
-         bg = "white",
-         path = "all_plots",
-         units = "px",
-         width = 2666,
-         height = 1875)
+  min_x <- data %>%
+    slice_min(y)
+  
+  correct_low <- min_x$x
+  
+  max_x <- data %>%
+    slice_max(y)
+  
+  correct_high <- max_x$x
+  
+  
+  plot <- ggplot(aes(x, y, group = 1), data = data) +
+    geom_line(size = 1) +
+    labs(x = "",
+         y = "") +
+    theme(axis.text.x = element_blank()) +
+    theme_ggdist() +
+    ylim(0,100) +
+    xlim(0, ceiling)
+    
+  ggsave(plot, filename=paste0(counter, "_line_", gran, "_l_", correct_low, "_h_", correct_high, ".png"), 
+       device = "png",
+       bg = "white",
+       path = "all_plots",
+       units = "px",
+       width = 1000,
+       height = 1000,  
+  )
+  
 }
+
 ```
- 
  
 ```{r plot_generator}
 counter = 1
 
-for (value in line_data) {
-  BBC_line_function()
+for (value in plot_series) {
+  bar_func(40, "HG")
   if (counter > 0) {
     counter = counter + 1
   }
@@ -101,15 +119,315 @@ for (value in line_data) {
 
 counter = 1
 
-for (value in line_data) {
-  min_line_function()
+for (value in plot_series) {
+  bar_func(10, "LG")
+  if (counter > 0) {
+    counter = counter + 1
+  }
+}
+
+counter = 1
+
+for (value in plot_series) {
+  line_func(40, "HG")
+  if (counter > 0) {
+    counter = counter + 1
+  }
+}
+
+counter = 1
+
+for (value in plot_series) {
+  line_func(10, "LG")
   if (counter > 0) {
     counter = counter + 1
   }
 }
 ```
 
- 
+# Assembling .csv
+
+```{r}
+images <- mixedsort(list.files(path = "all_plots"))
+
+plot_labels <- rep(c("all_plots/"), each = 180)
+
+plots_with_labels <- paste(plot_labels, images, sep = "")
+
+unique_item_no <- c(1:180)
+
+instructions <- rep(c("Approximately how far along the x axis is the lowest y value?",
+                      "Approximately how far along the x axis is the highest y value"), 90)
+
+data_with_plots <- cbind(unique_item_no, plots_with_labels, images, instructions)
+```
+
+# Creating masks
+
+```{r}
+mask_gen_function <- function() {
+
+x <- LETTERS[1:20]
+y <- paste0("var", seq(1,20))
+data <- expand.grid(X=x, Y=y)
+data$Z <- round(runif(400, 0, 1))
+
+mask <- ggplot(data, aes(X, Y, fill= Z)) + 
+  geom_tile() +
+  scale_fill_gradient(low = "white", high = "black") +
+  theme_void() +
+  theme(legend.position = "None")
+
+ggsave(mask,filename=paste("mask", counter,".png",sep=""),
+       device = "png",
+       bg = "white",
+       path = "masks",
+       units = "px",
+       width = 1000,
+       height = 1000,)
+}
+
+counter = 1
+for (i in 1:186) {
+  mask_gen_function()
+  if (counter > 0) {
+    counter = counter + 1
+  }
+}
+
+masks <- mixedsort(list.files(path = "masks"))
+
+mask_labels <- rep(c("masks/"), each = 186)
+
+masks_with_labels <- paste(mask_labels, masks, sep = "")
+```
+
+# Attaching height and width values to each plot, instructions column, and masks vector
+
+```{r}
+size_w <- rep(c(0.86), times = 180)
+
+size_h <- rep(c(0.86), times = 180)
+
+colour <- rep(c("black"), times = 180)
+
+data_with_sizes <- cbind(data_with_plots, size_h, size_w, colour)
+```
+
+# Creating attention_check DF.
+
+```{r}
+my_rs <- rep(c(0, 1), times = c(3, 3))
+
+total_residuals <- rep(c(0), times = 6)
+
+plots_with_labels <- head(plots_with_labels)
+
+images <- head(images)
+
+unique_item_no <- c(181:186)
+
+size_h <- rep(c(0.86), times = 6)
+
+size_w <- rep(c(0.86), times = 6)
+
+colour <- rep(c("red"), times = 6)
+
+instructions <- rep(c("Please IGNORE the correlation displayed and set the slider to 0.",
+                      "Please IGNORE the correlation displayed and set the slider to 1."),
+                    times = c(3, 3))
+
+attention_checks <- cbind(unique_item_no, my_rs, total_residuals, plots_with_labels, images,
+                          size_h, size_w, instructions, colour)
+```
+
+# Creating the final DF by rbinding attention_checks with data_with_sizes
+
+```{r}
+exp_spatially_dependent_final <- rbind(data_with_sizes, attention_checks) %>%
+  cbind(masks_with_labels)
+
+write.csv(exp_spatially_dependent_final, "exp_size_only_full_data.csv", row.names = FALSE)
+```
+
+# Practice trials
+
+# Prepare practice trial data
+
+```{r}
+number_of_participants = 1
+
+number_of_trials = 2
+
+set.seed(12345)
+
+my_rs <- rep(runif(number_of_trials, min = 0.2, max = 0.9), number_of_participants)
+```
+
+# Practice trial generation function
+
+```{r}
+practice_plot_generation_function <- function(my_desired_r) {
+  set.seed(12345)
+  
+  my_sample_size = 128
+  
+  mean_variable_1 = 0
+  sd_variable_1 = 1
+  
+  mean_variable_2 = 0
+  sd_variable_2 = 1
+  
+  mu <- c(mean_variable_1, mean_variable_2) 
+  
+  myr <- my_desired_r * sqrt(sd_variable_1) * sqrt(sd_variable_2)
+  
+  mysigma <- matrix(c(sd_variable_1, myr, myr, sd_variable_2), 2, 2) 
+  
+  corr_data = as_tibble(mvrnorm(my_sample_size, mu, mysigma, empirical = TRUE))
+  
+  corr_model <- lm(V2 ~ V1, data = corr_data)
+  
+  my_residuals <- abs(residuals(corr_model))
+  
+  data_with_resid <- round(cbind(corr_data, my_residuals), 2)
+
+test_plot <- ggplot(data_with_resid, aes(x = V1, y = V2)) +
+  scale_size_identity() +
+  geom_point(aes(size = 1), shape = 16)  +
+  labs(x = "", y = "") +
+  theme_classic() +
+  theme(axis.text = element_blank()) +
+  theme(plot.margin = unit(c(0,0,0,0), "cm")) +
+  theme(legend.position = "None")
+
+ggsave(test_plot,filename=paste0(counter,"P",".png"), 
+       device = "png",
+       bg = "white",
+       path = "practice_plots",
+       units = "px",
+       width = 1000,
+       height = 1000,
+)
+
+return()
+}
+```
+
+# Creating practice plots
+
+```{r}
+counter = 1
+for (value in my_rs) {
+  practice_plot_generation_function(value)
+  if (counter > 0) {
+    counter = counter + 1
+  }
+  }
+```
+
+# Arranging practice plots into new .csv
+
+```{r}
+practice_images <- mixedsort(list.files(path = "practice_plots"))
+
+size_h_p <- rep(c(0.86), times = 2)
+
+size_w_p <- rep(c(0.86), times = 2)
+
+practice_data <- cbind(practice_images, size_h_p, size_w_p)
+
+write.csv(practice_data, "practice_plots.csv", row.names = FALSE)
+```
+
+# Visibility threshold plots data generation
+
+```{r}
+set.seed(12345)
+
+sample_sizes <- c(2,3,5,6,7,4)
+```
+
+# Visibility threshold testing plot function
+
+```{r}
+vis_threshold_plot_function <- function(my_sample_size) {
+    set.seed(12345)
+  
+  my_desired_r = 0.2 
+  
+  mean_variable_1 = 0
+  sd_variable_1 = 1
+  
+  mean_variable_2 = 0
+  sd_variable_2 = 1
+  
+  mu <- c(mean_variable_1, mean_variable_2) 
+  
+  myr <- my_desired_r * sqrt(sd_variable_1) * sqrt(sd_variable_2)
+  
+  mysigma <- matrix(c(sd_variable_1, myr, myr, sd_variable_2), 2, 2) 
+  
+  corr_data = as_tibble(mvrnorm(my_sample_size, mu, mysigma, empirical = TRUE))
+  
+  corr_model <- lm(V2 ~ V1, data = corr_data)
+  
+  my_residuals <- abs(residuals(corr_model))
+  
+  data_with_resid <- round(cbind(corr_data, my_residuals), 2)
+
+threshold_plot <- ggplot(data_with_resid, aes(x = V1, y = V2)) +
+  scale_size_identity() +
+  geom_point(aes(size =  1), shape = 16) + 
+  labs(x = "", y = "") +
+  theme_classic() +
+  theme(axis.text = element_blank()) +
+  theme(plot.margin = unit(c(0,0,0,0), "cm")) +
+  theme(legend.position = "None")
+
+ggsave(threshold_plot,filename=paste0(value, "_","VT",".png"), 
+       device = "png",
+       bg = "white",
+       path = "vis_threshold_plots",
+       units = "px",
+       width = 1000,
+       height = 1000,
+)
+
+return()
+}
+```
+
+# Creating visibility threshold plots
+
+```{r}
+counter = 1
+for (value in sample_sizes) {
+  vis_threshold_plot_function(value)
+  if (counter > 0) {
+    counter = counter + 1
+  }
+  }
+```
+
+# Arranging visibility threshold plots into new .csv
+
+```{r}
+vis_threshold_images <- mixedsort(list.files(path = "vis_threshold_plots"))
+
+size_h_p <- rep(c(0.86), times = 2)
+
+size_w_p <- rep(c(0.86), times = 2)
+
+VT_labels <- rep(c("vis_threshold_plots/"), each = 6)
+
+VT_with_labels <- paste(VT_labels, vis_threshold_images, sep = "")
+
+VT_data <- cbind(VT_with_labels, size_h_p, size_w_p)
+
+write.csv(VT_data, "vis_threshold_plots.csv", row.names = FALSE)
+```
+
  
  
  
