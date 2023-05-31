@@ -156,10 +156,13 @@ plots_with_labels <- paste(plot_labels, images, sep = "")
 
 unique_item_no <- c(1:180)
 
-instructions <- rep(c("Approximately how far along the x axis is the lowest y value?",
-                      "Approximately how far along the x axis is the highest y value"), 90)
+number_instructions <- rep(c("Approximately how far along\nthe x axis is the lowest y value?\nOnce you have entered your answer,\nplease press the Spacebar.",
+                            "Approximately how far along\nthe x axis is the highest y value?\nOnce you have entered your answer,\nplease press the Spacebar."),
+                           90)
 
-data_with_plots <- cbind(unique_item_no, plots_with_labels, images, instructions)
+trust_instructions <- rep(c("How trustworthy is the plot\n you have just seen?\nUse the slider below to answer."),180)
+
+data_with_plots <- cbind(unique_item_no, plots_with_labels, images, number_instructions, trust_instructions)
 ```
 
 # Creating masks
@@ -209,9 +212,11 @@ size_w <- rep(c(1), times = 180)
 
 size_h <- rep(c(0.75), times = 180)
 
-colour <- rep(c("black"), times = 180)
+colour_number <- rep(c("black"), times = 180)
 
-data_with_sizes <- cbind(data_with_plots, size_h, size_w, colour)
+colour_trust <- rep(c("black"), times = 180)
+
+data_with_sizes <- cbind(data_with_plots, size_h, size_w, colour_number, colour_trust)
 ```
 
 # Creating attention_check DF.
@@ -228,14 +233,18 @@ size_h <- rep(c(1), times = 6)
 
 size_w <- rep(c(0.75), times = 6)
 
-colour <- rep(c("red"), times = 6)
+colour_number <- rep(c("red"), times = 6)
 
-instructions <- rep(c("Please IGNORE the plot displayed and type 100 in the box.",
-                      "Please IGNORE the plot displayed and and type 0 in the box"),
+colour_trust <- rep(c("red"), times = 6)
+
+AC_instructions_number <- rep(c("Please IGNORE the plot\ndisplayed and type 100 in the box.\nThen press the Spacebar",
+                      "Please IGNORE the plot\ndisplayed and type 0 in the box.\nThen press the Spacebar"),
                     times = c(3, 3))
 
-attention_checks <- cbind(unique_item_no, plots_with_labels, images,
-                          size_h, size_w, instructions, colour)
+AC_instructions_trust <- rep(c("Please ignore the slider and press the spacebar"), 6)
+
+attention_checks <- cbind(unique_item_no, plots_with_labels, images, AC_instructions_number,
+                          AC_instructions_trust, size_w, size_h, colour_number, colour_trust)
 ```
 
 # Creating the final DF by rbinding attention_checks with data_with_sizes
@@ -250,8 +259,7 @@ write.csv(trusty_viz_data, "trust_viz_data.csv", row.names = FALSE)
 # Practice trials
 
 ```{r}
-practice_data <- head(trusty_viz_data)
-
+practice_data <- head(trusty_viz_data, 4)
 
 write.csv(practice_data, "practice_plots.csv", row.names = FALSE)
 ```

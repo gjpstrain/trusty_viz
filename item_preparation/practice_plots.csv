@@ -1,7 +1,25 @@
-"unique_item_no","plots_with_labels","images","instructions","size_h","size_w","colour","masks_with_labels"
-"1","all_plots/1_bar_HG_l_27_h_18.png","1_bar_HG_l_27_h_18.png","Approximately how far along the x axis is the lowest y value?","0.75","1","black","masks/mask1.png"
-"2","all_plots/1_bar_LG_l_10_h_7.png","1_bar_LG_l_10_h_7.png","Approximately how far along the x axis is the highest y value","0.75","1","black","masks/mask2.png"
-"3","all_plots/1_line_HG_l_27_h_18.png","1_line_HG_l_27_h_18.png","Approximately how far along the x axis is the lowest y value?","0.75","1","black","masks/mask3.png"
-"4","all_plots/1_line_LG_l_10_h_7.png","1_line_LG_l_10_h_7.png","Approximately how far along the x axis is the highest y value","0.75","1","black","masks/mask4.png"
-"5","all_plots/2_bar_HG_l_31_h_17.png","2_bar_HG_l_31_h_17.png","Approximately how far along the x axis is the lowest y value?","0.75","1","black","masks/mask5.png"
-"6","all_plots/2_bar_LG_l_7_h_5.png","2_bar_LG_l_7_h_5.png","Approximately how far along the x axis is the highest y value","0.75","1","black","masks/mask6.png"
+"unique_item_no","plots_with_labels","images","number_instructions","trust_instructions","size_h","size_w","colour_number","colour_trust","masks_with_labels"
+"1","all_plots/1_bar_HG_l_27_h_18.png","1_bar_HG_l_27_h_18.png","Approximately how far along
+the x axis is the lowest y value?
+Once you have entered your answer,
+please press the Spacebar.","How trustworthy is the plot
+ you have just seen?
+Use the slider below to answer.","0.75","1","black","black","masks/mask1.png"
+"2","all_plots/1_bar_LG_l_10_h_7.png","1_bar_LG_l_10_h_7.png","Approximately how far along
+the x axis is the highest y value?
+Once you have entered your answer,
+ please press the Spacebar.","How trustworthy is the plot
+ you have just seen?
+Use the slider below to answer.","0.75","1","black","black","masks/mask2.png"
+"3","all_plots/1_line_HG_l_27_h_18.png","1_line_HG_l_27_h_18.png","Approximately how far along
+the x axis is the lowest y value?
+Once you have entered your answer,
+please press the Spacebar.","How trustworthy is the plot
+ you have just seen?
+Use the slider below to answer.","0.75","1","black","black","masks/mask3.png"
+"4","all_plots/1_line_LG_l_10_h_7.png","1_line_LG_l_10_h_7.png","Approximately how far along
+the x axis is the highest y value?
+Once you have entered your answer,
+ please press the Spacebar.","How trustworthy is the plot
+ you have just seen?
+Use the slider below to answer.","0.75","1","black","black","masks/mask4.png"
