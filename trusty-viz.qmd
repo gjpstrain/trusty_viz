@@ -1,0 +1,239 @@
+---
+title: "Granularity and Trust in Data Visualizations"
+
+params: 
+  eval_models: false
+
+knitr:
+  opts_chunk: 
+    cache_comments: false
+    
+execute:
+  echo: false
+  warning: false
+  message: false
+  include: false
+
+format: 
+  ieee-tvcg-pdf: default
+  ieee-tvcg-html: default
+
+author:
+  - name: Bogna Liziniewicz
+    affiliations:
+      - name: The University of Manchester
+        department: Division of Psychology, Communication, and Human Neuroscience
+        address: Oxford Road
+        city: Manchester
+        country: UK
+        postal-code: M13 9PL
+    orcid:  
+    email: duncan.bradley@manchester.ac.uk
+  - name: Gabriel Strain
+    affiliations:
+      - name: The University of Manchester
+        department: Department of Computer Science
+        address: Oxford Road
+        city: Manchester
+        country: UK
+        postal-code: M13 9PL
+    orcid: 0000-0002-4769-9221
+    email: gabriel.strain@manchester.ac.uk
+  - name: Andrew J. Stewart
+    affiliations:
+      - name: The University of Manchester
+        department: Department of Computer Science
+        address: Oxford Road
+        city: Manchester
+        country: UK
+        postal-code: M13 9PL
+    orcid: 0000-0002-9795-4104 
+    email: andrew.stewart@manchester.ac.uk
+      
+abstract: |
+
+
+keywords: "Trust, Reaction Time, Data Visualization, Granularity"
+bibliography: trusty-viz.bib
+link_citations: true
+
+teaser: false
+
+ieee-vgtc-metadata:
+  online-id: "0"
+  # please declare the paper type of your paper to help reviewers, only shown in review mode
+  # choices:
+  # * algorithm/technique
+  # * application/design study
+  # * evaluation
+  # * system
+  # * theory/model
+  paper-type: evaluation
+  short-author-title: "Liziniewicz \\MakeLowercase{\\textit{et al.}}: Trust in Data Viz"
+  keywords: ""
+---
+
+```{r}
+#| label: setup
+
+# Loading packages
+library(papaja) 
+library(tidyverse) 
+library(ordinal) 
+library(patchwork)
+library(magick) 
+library(markdown)
+library(shiny)
+library(knitr)
+library(tinytex)
+library(scales) 
+library(buildmer) 
+library(lme4)
+library(broom)
+library(insight)
+library(kableExtra)
+library(effectsize)
+library(qwraps2)
+library(conflicted)
+
+# fix function conflicts now 
+
+conflicts_prefer(dplyr::select(), dplyr::filter(), lme4::lmer())
+
+set.seed(54621) # seed for random number generation
+#tlmgr_install('collection-fontsrecommended') # additional font collection required for Docker
+```
+
+```{r}
+#| label: lazyload-cache
+if (!params$eval_models){ lazyload_cache_dir("trusty-viz-cache/pdf") }
+```
+
+```{r}
+#| label: load-data
+
+# loading data
+# see anonymisation.R for the script used to filter rejected participants and remove Prolific IDs
+
+trusty_viz_data_anon <- read_csv("data/trust_data.csv")
+```
+
+```{r}
+#| label: wrangle
+
+# function to wrangle data after anonymization
+
+wrangle <- function(anon_file) {
+  
+  literacy <- anon_file %>%
+    filter(!is.na(q1_slider.response)) %>%
+    rowwise() %>%
+    mutate(literacy = sum(c(q1_slider.response, 
+                            q2_slider.response, 
+                            q3_slider.response, 
+                            q4_slider.response, 
+                            q5_slider.response))) %>%
+    select(participant,
+           literacy)
+  
+# extract and process monitor and dot pitch information
+# we assume standard 16:9 aspect ratio for monitors
+  
+  monitor_information <- anon_file %>%
+    filter(!is.na(height)) %>%
+    mutate(res_height = res_width*0.5625,
+           width = height*0.5625,
+           dot_pitch = ((sqrt(height^2 + width^2))/(sqrt(res_height^2 + res_width^2))) * 25.4) %>%
+        select(c("dot_pitch", "participant", "res_width"))
+    
+  
+# extract demographic information
+# link slider response numbers to gender categories
+  
+  demographics <- anon_file %>%
+    filter(!is.na(gender_slider.response)) %>%
+    mutate(gender_slider.response = recode(gender_slider.response,
+                                         `1` = "F",
+                                         `2` = "M",
+                                         `3` = "NB")) %>%
+  select(matches(c("participant",
+                          "age_textbox.text",
+                          "gender_slider.response")))
+
+# split plots_with_labels column into item and contrast condition columns 
+
+anon_file <- anon_file %>%
+  separate(images, c("dataset", "plot_type", "granularity", "place_holder1", "low_correct",
+                     "place_holder2", "high_correct"), sep = "_") %>%
+  mutate(high_correct = str_replace(high_correct, pattern = ".png", replacement = ""))
+
+# select relevant columns
+# select only experimental items
+# add literacy data
+# change data types where appropriate
+# output this file with suffix 'tidy'
+
+anon_file %>%
+  select(c("participant",
+           "dataset",
+           "plot_type",
+           "granularity",
+           "low_correct",
+           "high_correct",
+           "unique_item_no",
+           "session",
+           "trials.thisN",
+           "textbox_number_component.text",
+           "number_keypress.rt",
+           "trust_slider.response",
+           "trust_key.rt")) %>%
+  mutate(half = case_when(
+    trials.thisN < 93 ~ "First",
+    trials.thisN > 92 ~ "Second" )) %>%
+  filter(unique_item_no < 181) %>%
+  inner_join(literacy, by = "participant") %>%
+  inner_join(demographics, by = "participant") %>%
+  inner_join(monitor_information, by = "participant") %>%
+  select(-c("__participant")) %>%
+  mutate(across(matches(c("plot_type", "granularity")), as_factor)) %>%
+  assign(paste0(unique(anon_file$expName), "_tidy"),
+           value = ., envir = .GlobalEnv)
+}
+
+# use wrangle function on anonmyised data files 
+
+wrangle(trusty_viz_data_anon)
+
+# remove anon df from environment
+
+rm(trusty_viz_data_anon)
+
+# extract age data
+
+age <- distinct(trusty_viz_tidy, participant,
+                .keep_all = TRUE) %>%
+  summarise(mean = mean(age_textbox.text, na.rm = TRUE),
+            sd = sd(age_textbox.text, na.rm = TRUE)) 
+
+# extract gender data
+
+gender <- distinct(trusty_viz_tidy, participant,
+                      .keep_all = TRUE) %>%
+  group_by(gender_slider.response) %>%
+  summarise(perc = n()/nrow(.)*100) %>%
+  pivot_wider(names_from = gender_slider.response, values_from = perc)
+
+# extract literacy data
+
+literacy <- distinct(trusty_viz_tidy, participant,
+                        .keep_all = TRUE) %>%
+  summarise(mean = mean(literacy), sd = sd(literacy))
+
+```
+
+
+
+
+
+
+
