@@ -1,82 +1,15 @@
 ---
-title: "Granularity and Trust in Data Visualizations"
-
-params: 
-  eval_models: true
-
-knitr:
-  opts_chunk: 
-    cache_comments: false
-    
-execute:
-  echo: false
-  warning: false
-  message: false
-  include: false
-
-format: 
-  ieee-tvcg-pdf: default
-  ieee-tvcg-html: default
-
-author:
-  - name: Bogna Liziniewicz
-    affiliations:
-      - name: The University of Manchester
-        department: Division of Psychology, Communication, and Human Neuroscience
-        address: Oxford Road
-        city: Manchester
-        country: UK
-        postal-code: M13 9PL
-    orcid: 
-    email: duncan.bradley@manchester.ac.uk
-  - name: Gabriel Strain
-    affiliations:
-      - name: The University of Manchester
-        department: Department of Computer Science
-        address: Oxford Road
-        city: Manchester
-        country: UK
-        postal-code: M13 9PL
-    orcid: 0000-0002-4769-9221
-    email: gabriel.strain@manchester.ac.uk
-  - name: Andrew J. Stewart
-    affiliations:
-      - name: The University of Manchester
-        department: Department of Computer Science
-        address: Oxford Road
-        city: Manchester
-        country: UK
-        postal-code: M13 9PL
-    orcid: 0000-0002-9795-4104 
-    email: andrew.stewart@manchester.ac.uk
-      
-abstract: |
-  asdasdasdads
-
-
-keywords: "Trust, Reaction Time, Data Visualization, Granularity"
-bibliography: trusty-viz.bib
-link_citations: true
-
-teaser: false
-
-ieee-vgtc-metadata:
-  online-id: "0"
-  # please declare the paper type of your paper to help reviewers, only shown in review mode
-  # choices:
-  # * algorithm/technique
-  # * application/design study
-  # * evaluation
-  # * system
-  # * theory/model
-  paper-type: evaluation
-  short-author-title: "Liziniewicz \\MakeLowercase{\\textit{et al.}}: Trust in Data Viz"
-  keywords: ""
+title: "results_summary"
+author: "Gabriel Strain"
+date: "2023-06-21"
+output: html_document
 ---
 
-```{r}
-#| label: setup
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE, comment = FALSE)
+```
 
+```{r}
 # Loading packages
 library(papaja) 
 library(tidyverse) 
@@ -96,6 +29,8 @@ library(kableExtra)
 library(effectsize)
 library(qwraps2)
 library(conflicted)
+library(Hmisc)
+library(ggdist)
 
 # fix function conflicts now 
 
@@ -105,26 +40,23 @@ set.seed(54621) # seed for random number generation
 #tlmgr_install('collection-fontsrecommended') # additional font collection required for Docker
 ```
 
-```{r}
-#| label: lazyload-cache
-if (!params$eval_models){ lazyload_cache_dir("trusty-viz_cache/pdf") }
+```{r eval-models, include=FALSE}
+# in this script, models are cached. If eval_models <- FALSE, script will load
+# cached models. Set eval_models <- TRUE to rebuild models from scratch
+
+eval_models <- FALSE
+
+if (eval_models == FALSE){
+  lazyload_cache_dir('results_summary_cache/html')
+}
 ```
 
-```{r}
-#| label: load-data
-
-# loading data
-# see anonymisation.R for the script used to filter rejected participants and remove Prolific IDs
+```{r load-data, include=FALSE}
 
 trusty_viz_data_anon <- read_csv("data/trust_data.csv")
 ```
 
-```{r}
-#| label: wrangle
-
-# function to wrangle data after anonymization
-
-# extract literacy data and compute scores
+```{r wrangle, include=FALSE}
 
 wrangle <- function(anon_file) {
   
@@ -237,11 +169,7 @@ literacy <- distinct(trusty_viz_tidy, participant,
 
 ```
 
-```{r}
-#| label: comparison-function-lm
-
-# this function takes a model and creates a nested model with the fixed effects 
-# term removed for anova comparison
+```{r comparison, include=FALSE}
 
 comparison <- function(model) {
   
@@ -257,13 +185,9 @@ comparison <- function(model) {
 }
 ```
 
-```{r}
-#| label: anova-results-function
+```{r anova-results-lm, include=FALSE}
 
-# this function takes two nested models, runs an anova, and the outputs the 
-# Chi-square statistic, the degrees of freedom, and the p value to the global environment
-
-anova_results <- function(model, cmpr_model) {
+anova_results_lm <- function(model, cmpr_model) {
   
   model_name <- deparse(substitute(model))
   
@@ -285,10 +209,32 @@ anova_results <- function(model, cmpr_model) {
 }
 ```
 
-```{r}
-#| label: contrasts-extract
+```{r anova-results-ord, include=FALSE}
+# this function takes two nested models, runs an anova, and the outputs the Likelihood Ratio Statistic, degrees of freedom, and p value to the global environment
+anova_results_ord <- function(model, cmpr_model) {
+  
+  # first argument 
+  model_name <- deparse(substitute(model))
+  
+  if (class(model) == "buildmer") model <- model@model
+  if (class(cmpr_model) == "buildmer") cmpr_model <- cmpr_model@model
+      
+  anova_output <- ordinal:::anova.clm(model, cmpr_model)
+  # use of ordinal:::anova.clm based on https://github.com/runehaubo/ordinal/issues/38  
+  
+  assign(paste0(model_name, ".LR"),
+         anova_output$LR.stat[2],
+         envir = .GlobalEnv)
+  assign(paste0(model_name, ".df"),
+         anova_output$df[2],
+         envir = .GlobalEnv)
+  assign(paste0(model_name, ".p"),
+         anova_output$`Pr(>Chisq)`[2],
+         envir = .GlobalEnv)
+}
+```
 
-# this function extracts test statistics and p values from model summaries
+```{r contrasts-extract, include=FALSE}
 
 contrasts_extract <- function(model) {
   
@@ -310,8 +256,7 @@ contrasts_extract <- function(model) {
 }
 ```
 
-```{r}
-#| label: get-effects-sizes-lm
+```{r get-lm-effect-sizes, include=FALSE}
 
 get_effects_sizes <- function(model, d) {
   
@@ -325,12 +270,7 @@ get_effects_sizes <- function(model, d) {
 
 # Granularity does not predict RT
 
-```{r}
-#| label: gran_RT_model
-#| eval: !expr params$eval_models
-#| cache: !expr params$eval_models
-
-# build H1 model and comparison model, then do anova
+```{r gran_rt_model, cache=eval_models, cache.comments=FALSE, eval=eval_models, include=FALSE, cache.path="results_summary/html/"}
 
 gran_RT_model <- buildmer(total_RT ~ granularity +
                             (1 + granularity | participant) +
@@ -358,10 +298,7 @@ and slopes for participants.
 
 # Granularity can predict higher trust ratings
 
-```{r}
-#| label: gran_trust
-#| eval: !expr params$eval_models
-#| cache: !expr params$eval_models
+```{r gran_trust_model, cache=eval_models, cache.comments=FALSE, eval=eval_models, include=FALSE, cache.path="results_summary/html/"}
 
 gran_trust <- buildclmm(trust_slider.response ~ granularity +
                           (1 + granularity | participant) +
@@ -373,15 +310,11 @@ gran_trust_model <- gran_trust@model
 gran_trust_comparison <- comparison(gran_trust_model)
 ```
 
-```{r}
-#| label: gran_trust_anova
-#| eval: !expr params$eval_models
-#| cache: !expr params$eval_models
-
-anova_results(gran_trust_model, gran_trust_comparison)
-
-ordinal:::anova.clmm(gran_trust_model, gran_trust_comparison)
+```{r gran_trust_anova, cache=eval_models, cache.comments=FALSE, eval=eval_models, include=FALSE, cache.path="results_summary/html/"}
+anova_results_ord(gran_trust_model, gran_trust_comparison)
 ```
+
+
 
 # Weak correlation between granularity and trustworthiness (0.12)
 
@@ -389,10 +322,8 @@ ordinal:::anova.clmm(gran_trust_model, gran_trust_comparison)
 rcorr(trusty_viz_tidy$trust_slider.response, trusty_viz_tidy$granularity, type = "pearson")
 ```
 
-```{r}
-#| label: gran_trust_RT
-#| eval: !expr params$eval_models
-#| cache: !expr params$eval_models
+```{r gran_trust_RT_model, cache=eval_models, cache.comments=FALSE, eval=eval_models, include=FALSE, cache.path="results_summary/html/"}
+
 
 gran_trust_RT <- buildclmm(trust_slider.response ~ granularity*total_RT +
                           (1 + granularity*total_RT | participant) +
@@ -412,7 +343,6 @@ interaction.
 
 ```{r}
 #| label: bar-plot
-
 
 trusty_viz_tidy %>%
   filter(!is.na(trust_slider.response)) %>%
