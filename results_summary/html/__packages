@@ -28,3 +28,6 @@ effectsize
 qwraps2
 conflicted
 lmerTest
+Hmisc
+ggdist
+emmeans

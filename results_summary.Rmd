@@ -31,6 +31,7 @@ library(qwraps2)
 library(conflicted)
 library(Hmisc)
 library(ggdist)
+library(emmeans)
 
 # fix function conflicts now 
 
@@ -44,7 +45,7 @@ set.seed(54621) # seed for random number generation
 # in this script, models are cached. If eval_models <- FALSE, script will load
 # cached models. Set eval_models <- TRUE to rebuild models from scratch
 
-eval_models <- FALSE
+eval_models <- TRUE
 
 if (eval_models == FALSE){
   lazyload_cache_dir('results_summary_cache/html')
@@ -268,9 +269,9 @@ get_effects_sizes <- function(model, d) {
 }
 ```
 
-# Granularity does not predict RT
+# H1: Granularity does not predict RT
 
-```{r gran_rt_model, cache=eval_models, cache.comments=FALSE, eval=eval_models, include=FALSE, cache.path="results_summary/html/"}
+```{r gran-rt-model, cache=eval_models, cache.comments=FALSE, eval=eval_models, include=FALSE, cache.path="results_summary/html/"}
 
 gran_RT_model <- buildmer(total_RT ~ granularity +
                             (1 + granularity | participant) +
@@ -282,10 +283,9 @@ gran_RT_model <- gran_RT_model@model
 gran_RT_comparison <- comparison(gran_RT_model)
 ```
 
-```{r}
-#| label: gran_RT_anova
+```{r gran-RT-anova}
 
-anova_results(gran_RT_model, gran_RT_comparison)
+anova_results_lm(gran_RT_model, gran_RT_comparison)
 ```
 
 All analyses were built using R (version `r paste0(R.version$major, ".", R.version$minor)`.
@@ -296,9 +296,9 @@ a null model ($\chi^2$(`r in_paren(gran_RT_model.df)`) = `r printnum(gran_RT_mod
 *p* `r printp(gran_RT_model.p, add_equals = TRUE)`). This model has a random intercepts 
 and slopes for participants.
 
-# Granularity can predict higher trust ratings
+# H2: Granularity can predict higher trust ratings
 
-```{r gran_trust_model, cache=eval_models, cache.comments=FALSE, eval=eval_models, include=FALSE, cache.path="results_summary/html/"}
+```{r gran-trust-model, cache=eval_models, cache.comments=FALSE, eval=eval_models, include=FALSE, cache.path="results_summary/html/"}
 
 gran_trust <- buildclmm(trust_slider.response ~ granularity +
                           (1 + granularity | participant) +
@@ -310,36 +310,62 @@ gran_trust_model <- gran_trust@model
 gran_trust_comparison <- comparison(gran_trust_model)
 ```
 
-```{r gran_trust_anova, cache=eval_models, cache.comments=FALSE, eval=eval_models, include=FALSE, cache.path="results_summary/html/"}
+```{r gran-trust-anova}
 anova_results_ord(gran_trust_model, gran_trust_comparison)
 ```
 
+Analyses were built using R (version `r paste0(R.version$major, ".", R.version$minor)`.
+Ordinal model was built using the **buildmer** and **ordinal** packages, with plot granularity being set as the predictor
+for trustworthiness rating. A likelihood ratio test revealed that the model including
+plot granularity as a predictor explained significantly more variance than
+a null model ($\chi^2$(`r in_paren(gran_trust_model.df)`) = `r printnum(gran_trust_model.LR)`,
+*p* `r printp(gran_trust_model.p, add_equals = TRUE)`). Higher granularity plots were
+rated as being more trustworthy. This model has no random intercepts or slopes.
 
+```{r pairwise-comp-gran-rt}
+emmeans(gran_trust_model, ~ granularity)
+```
 
-# Weak correlation between granularity and trustworthiness (0.12)
+# H3: Weak correlation between granularity and trustworthiness (0.12)
 
-```{r}
+```{r, echo=TRUE}
 rcorr(trusty_viz_tidy$trust_slider.response, trusty_viz_tidy$granularity, type = "pearson")
 ```
 
-```{r gran_trust_RT_model, cache=eval_models, cache.comments=FALSE, eval=eval_models, include=FALSE, cache.path="results_summary/html/"}
+# H4: Granularity and reaction time predict trustworthiness, but there is no interaction.
 
+
+```{r gran-trust-RT-model, eval=eval_models, cache=eval_models, cache.comments=FALSE, cache.path="results_summary/html/", include=FALSE}
 
 gran_trust_RT <- buildclmm(trust_slider.response ~ granularity*total_RT +
-                          (1 + granularity*total_RT | participant) +
-                          (1 + granularity*total_RT | dataset),
+                          (1 + granularity * total_RT | participant) +
+                          (1 + granularity * total_RT | dataset),
                         data = trusty_viz_tidy)
 
 gran_trust_RT_model <- gran_trust_RT@model
 
-gran_trust_comparison <- comparison(gran_trust_model)
-
-emmeans(gran_trust_RT_model,  ~ granularity * total_RT)
-
+gran_trust_RT_comparison <- clm(trust_slider.response ~ 1, data = trusty_viz_tidy)
 ```
 
-Granularity and reaction time predict trustworthiness, but there is no
-interaction.
+```{r gran-trustRT_anova}
+anova_results_ord(gran_trust_RT_model, gran_trust_comparison)
+```
+
+Analysis were built using R (version `r paste0(R.version$major, ".", R.version$minor)`.
+Ordinal model was built using the **buildmer** and **ordinal** packages, with plot granularity and total reaction time
+being set as the predictors for trustworthiness rating. A likelihood ratio test revealed that the model including
+plot granularity and total RT as predictors explained significantly more variance than
+a null model ($\chi^2$(`r in_paren(gran_trust_RT_model.df)`) = `r printnum(gran_trust_RT_model.LR)`,
+*p* `r printp(gran_trust_RT_model.p, add_equals = TRUE)`). Higher granularity plots were
+rated as being more trustworthy. This model has no random intercepts or
+and slopes for items or participants
+
+```{r}
+emmeans(gran_trust_RT_model, ~ granularity + total_RT)
+```
+
+
+# Visualising
 
 ```{r}
 #| label: bar-plot
@@ -354,6 +380,31 @@ trusty_viz_tidy %>%
   labs(x = "Trust Rating",
        y = "Count")
 ```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
