@@ -2,7 +2,9 @@
 title: "results_summary"
 author: "Gabriel Strain"
 date: "2023-06-21"
-output: html_document
+output:
+  html_document: default
+  pdf_document: default
 ---
 
 ```{r setup, include=FALSE}
@@ -25,7 +27,7 @@ library(buildmer)
 library(lme4)
 library(broom)
 library(insight)
-library(kableExtra)
+#library(kableExtra)
 library(effectsize)
 library(qwraps2)
 library(conflicted)
@@ -48,7 +50,7 @@ set.seed(54621) # seed for random number generation
 eval_models <- TRUE
 
 if (eval_models == FALSE){
-  lazyload_cache_dir('results_summary_cache/html')
+  lazyload_cache_dir('results_summary/html')
 }
 ```
 
@@ -269,6 +271,35 @@ get_effects_sizes <- function(model, d) {
 }
 ```
 
+```{r summary-extract}
+summary_extract <- function(model, key_term) {
+  
+  params <- c("statistic", "p.value", "estimate")
+
+  model_name <- deparse(substitute(model))
+  
+  if (class(model) == "buildmer") model <- model@model
+  
+  # get the row for the chosen fixed effect term
+  one_row <- tidy(model) %>% filter(term == key_term)
+
+    get_cols <- function(param) {
+
+    assign(value = one_row %>% pull(param),
+           envir = .GlobalEnv,
+           paste0(model_name, ".", param))
+    }
+
+    lapply(params, get_cols)
+    
+    
+    assign(value = confint(model)[key_term,],
+           envir = .GlobalEnv,
+           paste0(model_name, ".CI"))
+
+}
+```
+
 # H1: Granularity does not predict RT
 
 ```{r gran-rt-model, cache=eval_models, cache.comments=FALSE, eval=eval_models, include=FALSE, cache.path="results_summary/html/"}
@@ -283,7 +314,7 @@ gran_RT_model <- gran_RT_model@model
 gran_RT_comparison <- comparison(gran_RT_model)
 ```
 
-```{r gran-RT-anova}
+```{r gran-RT-anova, eval=TRUE}
 
 anova_results_lm(gran_RT_model, gran_RT_comparison)
 ```
@@ -310,7 +341,7 @@ gran_trust_model <- gran_trust@model
 gran_trust_comparison <- comparison(gran_trust_model)
 ```
 
-```{r gran-trust-anova}
+```{r gran-trust-anova, eval=TRUE}
 anova_results_ord(gran_trust_model, gran_trust_comparison)
 ```
 
@@ -322,11 +353,40 @@ a null model ($\chi^2$(`r in_paren(gran_trust_model.df)`) = `r printnum(gran_tru
 *p* `r printp(gran_trust_model.p, add_equals = TRUE)`). Higher granularity plots were
 rated as being more trustworthy. This model has no random intercepts or slopes.
 
+```{r gran_trust_emm-plot, echo=FALSE}
+# extract estimated marginal means for E1 chance (magnitude) ratings
+gran_trust_emm <- emmeans(gran_trust_model, ~ granularity) %>% as_tibble()
+
+# generate plot of estimated marginal means for trust ratings in the two granularity conditions
+
+gran_trust_emm %>%
+  as_tibble() %>%
+  mutate_at(vars("emmean":"asymp.UCL"), as.numeric) %>%
+  ggplot(aes(x = granularity, y = emmean, group = 1)) +
+  geom_linerange(aes(ymin = asymp.LCL, ymax = asymp.UCL),
+                 position = position_dodge(width = 0.1),
+                 size = 3, alpha = 0.5) +
+  geom_point(position = position_dodge(width = 0.1), size = 3) +
+  geom_line(position = position_dodge(width = 0.1),
+            size = 2) +
+  #lims(y = c(-1.8, 2)) +
+  labs(y = "Estimated\nMarginal Mean",
+       x = "Granularity",
+       title = "Ratings of Trustworthiness") +
+  scale_x_discrete(labels = c('Low\nGranularity','High\nGranularity'),
+                   limits = c("LG", "HG")) +
+  theme_minimal(base_size = 18) +
+  theme(legend.position = "none",
+        panel.grid = element_blank(),
+        #axis.text.y = element_blank(),
+        plot.title = element_text(size=18, hjust = 0.5))
+```
+
 ```{r pairwise-comp-gran-rt}
 emmeans(gran_trust_model, ~ granularity)
 ```
 
-# H3: Weak correlation between granularity and trustworthiness (0.12)
+# H3: Weak correlation between granularity and trustworthiness
 
 ```{r, echo=TRUE}
 rcorr(trusty_viz_tidy$trust_slider.response, trusty_viz_tidy$granularity, type = "pearson")
@@ -347,7 +407,7 @@ gran_trust_RT_model <- gran_trust_RT@model
 gran_trust_RT_comparison <- clm(trust_slider.response ~ 1, data = trusty_viz_tidy)
 ```
 
-```{r gran-trustRT_anova}
+```{r gran-trustRT-anova}
 anova_results_ord(gran_trust_RT_model, gran_trust_comparison)
 ```
 
@@ -357,15 +417,31 @@ being set as the predictors for trustworthiness rating. A likelihood ratio test 
 plot granularity and total RT as predictors explained significantly more variance than
 a null model ($\chi^2$(`r in_paren(gran_trust_RT_model.df)`) = `r printnum(gran_trust_RT_model.LR)`,
 *p* `r printp(gran_trust_RT_model.p, add_equals = TRUE)`). Higher granularity plots were
-rated as being more trustworthy. This model has no random intercepts or
-and slopes for items or participants
+rated as being more trustworthy, and on average peope were faster to respond
+to plots that they subsequently rated as more trustworthy. This model has no random intercepts or
+and slopes for items or participants.
 
-```{r}
-emmeans(gran_trust_RT_model, ~ granularity + total_RT)
+```{r dot-plot-RT}
+
+
+
+trusty_viz_tidy %>%
+  drop_na(trust_slider.response) %>%
+  group_by(trust_slider.response) %>%
+  summarise(mean_total_RT = mean(total_RT),
+            sem = (sd(total_RT)/sqrt(150))) %>%
+              ggplot(aes(x = trust_slider.response, y = mean_total_RT, group = 1)) +
+              geom_point(size = 1.2) +
+              geom_line(size = 0.5) +
+              geom_errorbar(mapping = aes(ymin = mean_total_RT - sem, ymax = mean_total_RT + sem),
+                            width = 0.07, size = 0.03) +
+                theme_ggdist() +
+  labs(x = "Trust Rating",
+       y = "Mean Reaction Time (ms)",
+       title = "Distribution of Reaction Times by Trust Rating")
+  
+
 ```
-
-
-# Visualising
 
 ```{r}
 #| label: bar-plot
@@ -378,8 +454,38 @@ trusty_viz_tidy %>%
   geom_bar(stat = "identity", position = "dodge") +
   theme_ggdist() +
   labs(x = "Trust Rating",
-       y = "Count")
+       y = "Count",
+       title = "Histogram of Trust Ratings by Granularity")
 ```
+
+# Graph Literacy
+
+```{r graph-lit, cache=eval_models, cache.comments=FALSE, eval=eval_models, include=FALSE, cache.path="results_summary/html/"}
+gran_trust_RT_lit <- clm(add.terms(formula(gran_trust_RT_model), "literacy"),
+                         data = trusty_viz_tidy)
+
+lit_comp <- gran_trust_RT_model
+```
+
+```{r lit-comparison, eval=TRUE, echo=FALSE, message=FALSE}
+anova_results_ord(lit_comp, gran_trust_RT_lit)
+```
+
+```{r lit-summary}
+summary_extract(gran_trust_RT_lit, "literacy")
+```
+
+We also generate an additional model to test whether the results we found could
+be explained by differences in graph literacy. This model is identical to the 
+experimental model, but includes graph literacy as a fixed effect.
+We found a significant difference between the original model and the one
+including graph literacy as a fixed effect ($\chi^2$(`r in_paren(lit_comp.df)`)
+`r printnum(lit_comp.LR)`, *p* `r printp(lit_comp.p, add_equals = TRUE)`). These 
+results suggest that the effect we found may have been driven by differences in
+graph literacy between participants. A 1 point increase in graph literacy score
+corresponded to a `r printnum(gran_trust_RT_lit.estimate)` increase in trust score,
+(z = `r printnum(gran_trust_RT_lit.statistic)`, *p* `r printp(gran_trust_RT_lit.p.value, add_equals = TRUE)`, `r print_confint(gran_trust_RT_lit.CI)`).
+
 
 
 
