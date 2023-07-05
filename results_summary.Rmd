@@ -31,7 +31,6 @@ library(emmeans)
 conflicts_prefer(dplyr::select(), dplyr::filter(), dplyr::lead(), lme4::lmer())
 
 set.seed(54621) # seed for random number generation
-#tlmgr_install('collection-fontsrecommended') # additional font collection required for Docker
 ```
 
 ```{r eval-models, include=FALSE}
@@ -296,12 +295,13 @@ gran_RT_model <- buildmer(total_RT ~ granularity +
                           data = trusty_viz_tidy)
 
 gran_RT_model <- gran_RT_model@model
+```
 
+```{r gran-rt-cmpr, cache=eval_models, cache.comments=FALSE, eval=eval_models, include=FALSE, cache.path="results_summary/html/"}
 gran_RT_comparison <- comparison(gran_RT_model)
 ```
 
 ```{r gran-RT-anova, eval=TRUE}
-
 anova_results_lm(gran_RT_model, gran_RT_comparison)
 ```
 
@@ -323,7 +323,9 @@ gran_trust <- buildclmm(trust_slider.response ~ granularity +
                         data = trusty_viz_tidy)
 
 gran_trust_model <- gran_trust@model
+```
 
+```{r gran-trust-cmpr, cache=eval_models, cache.comments=FALSE, eval=eval_models, include=FALSE, cache.path="results_summary/html/"}
 gran_trust_comparison <- comparison(gran_trust_model)
 ```
 
@@ -331,7 +333,7 @@ gran_trust_comparison <- comparison(gran_trust_model)
 anova_results_ord(gran_trust_model, gran_trust_comparison)
 ```
 
-Analyses were built using R (version `r paste0(R.version$major, ".", R.version$minor)`.
+Analyses were built using R (version `r paste0(R.version$major, ".", R.version$minor)`).
 Ordinal model was built using the **buildmer** and **ordinal** packages, with plot granularity being set as the predictor
 for trustworthiness rating. A likelihood ratio test revealed that the model including
 plot granularity as a predictor explained significantly more variance than
@@ -383,8 +385,11 @@ gran_trust_RT <- buildclmm(trust_slider.response ~ granularity*total_RT +
                           (1 + granularity * total_RT | dataset),
                         data = trusty_viz_tidy)
 
-gran_trust_RT_model <- gran_trust_RT@model
 
+gran_trust_RT_model <- gran_trust_RT@model
+```
+
+```{r gran-trust-rt-cmpr, cache=eval_models, cache.comments=FALSE, eval=eval_models, include=FALSE, cache.path="results_summary/html/"}
 # manually build null model as above function only works on mixed models and buildclmm() produces a model without random effects
 
 gran_trust_RT_comparison <- clm(trust_slider.response ~ 1, data = trusty_viz_tidy)
