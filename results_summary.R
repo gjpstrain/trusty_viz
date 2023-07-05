@@ -1,25 +1,24 @@
----
-title: "results_summary"
-author: "Gabriel Strain"
-date: "2023-06-21"
-output:
-  html_document: default
-  pdf_document: default
----
-
-```{r setup, include=FALSE}
+## ----setup, include=FALSE---------------------------------------------------------------------------------------------------------------------------------------------------
 knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE, comment = FALSE)
-```
 
-```{r}
+
+## ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 # Loading packages
 library(papaja) 
 library(tidyverse) 
-library(ordinal)
-library(knitr) 
+library(ordinal) 
+library(patchwork)
+library(magick) 
+library(markdown)
+library(shiny)
+library(knitr)
+library(tinytex)
+library(scales) 
 library(buildmer) 
 library(lme4)
 library(broom)
+library(insight)
+library(effectsize)
 library(qwraps2)
 library(conflicted)
 library(Hmisc)
@@ -32,23 +31,25 @@ conflicts_prefer(dplyr::select(), dplyr::filter(), dplyr::lead(), lme4::lmer())
 
 set.seed(54621) # seed for random number generation
 #tlmgr_install('collection-fontsrecommended') # additional font collection required for Docker
-```
 
-```{r eval-models, include=FALSE}
+
+## ----eval-models, include=FALSE---------------------------------------------------------------------------------------------------------------------------------------------
+# in this script, models are cached. If eval_models <- FALSE, script will load
+# cached models. Set eval_models <- TRUE to rebuild models from scratch
 
 eval_models <- TRUE
 
 if (eval_models == FALSE){
   lazyload_cache_dir('results_summary/html')
 }
-```
 
-```{r load-data, include=FALSE}
+
+## ----load-data, include=FALSE-----------------------------------------------------------------------------------------------------------------------------------------------
 
 trusty_viz_data_anon <- read_csv("data/trust_data.csv")
-```
 
-```{r wrangle, include=FALSE}
+
+## ----wrangle, include=FALSE-------------------------------------------------------------------------------------------------------------------------------------------------
 
 wrangle <- function(anon_file) {
   
@@ -159,9 +160,9 @@ literacy <- distinct(trusty_viz_tidy, participant,
                         .keep_all = TRUE) %>%
   summarise(mean = mean(literacy), sd = sd(literacy))
 
-```
 
-```{r comparison, include=FALSE}
+
+## ----comparison, include=FALSE----------------------------------------------------------------------------------------------------------------------------------------------
 
 comparison <- function(model) {
   
@@ -175,9 +176,9 @@ comparison <- function(model) {
   return(cmpr_model)
   
 }
-```
 
-```{r anova-results-lm, include=FALSE}
+
+## ----anova-results-lm, include=FALSE----------------------------------------------------------------------------------------------------------------------------------------
 
 anova_results_lm <- function(model, cmpr_model) {
   
@@ -199,17 +200,20 @@ anova_results_lm <- function(model, cmpr_model) {
          envir = .GlobalEnv)
   
 }
-```
 
-```{r anova-results-ord, include=FALSE}
+
+## ----anova-results-ord, include=FALSE---------------------------------------------------------------------------------------------------------------------------------------
+# this function takes two nested models, runs an anova, and the outputs the Likelihood Ratio Statistic, degrees of freedom, and p value to the global environment
 anova_results_ord <- function(model, cmpr_model) {
   
+  # first argument 
   model_name <- deparse(substitute(model))
   
   if (class(model) == "buildmer") model <- model@model
   if (class(cmpr_model) == "buildmer") cmpr_model <- cmpr_model@model
       
   anova_output <- ordinal:::anova.clm(model, cmpr_model)
+  # use of ordinal:::anova.clm based on https://github.com/runehaubo/ordinal/issues/38  
   
   assign(paste0(model_name, ".LR"),
          anova_output$LR.stat[2],
@@ -221,9 +225,9 @@ anova_results_ord <- function(model, cmpr_model) {
          anova_output$`Pr(>Chisq)`[2],
          envir = .GlobalEnv)
 }
-```
 
-```{r contrasts-extract, include=FALSE}
+
+## ----contrasts-extract, include=FALSE---------------------------------------------------------------------------------------------------------------------------------------
 
 contrasts_extract <- function(model) {
   
@@ -243,9 +247,9 @@ contrasts_extract <- function(model) {
   return(params)
   
 }
-```
 
-```{r get-lm-effect-sizes, include=FALSE}
+
+## ----get-lm-effect-sizes, include=FALSE-------------------------------------------------------------------------------------------------------------------------------------
 
 get_effects_sizes <- function(model, d) {
   
@@ -255,9 +259,9 @@ get_effects_sizes <- function(model, d) {
   
   return(effects_df)
 }
-```
 
-```{r summary-extract}
+
+## ----summary-extract--------------------------------------------------------------------------------------------------------------------------------------------------------
 summary_extract <- function(model, key_term) {
   
   params <- c("statistic", "p.value", "estimate")
@@ -284,63 +288,26 @@ summary_extract <- function(model, key_term) {
            paste0(model_name, ".CI"))
 
 }
-```
 
-# H1: Granularity does not predict RT
 
-```{r gran-rt-model, cache=eval_models, cache.comments=FALSE, eval=eval_models, include=FALSE, cache.path="results_summary/html/"}
 
-gran_RT_model <- buildmer(total_RT ~ granularity +
-                            (1 + granularity | participant) +
-                            (1 + granularity | dataset), 
-                          data = trusty_viz_tidy)
 
-gran_RT_model <- gran_RT_model@model
-
-gran_RT_comparison <- comparison(gran_RT_model)
-```
-
-```{r gran-RT-anova, eval=TRUE}
+## ----gran-RT-anova, eval=TRUE-----------------------------------------------------------------------------------------------------------------------------------------------
 
 anova_results_lm(gran_RT_model, gran_RT_comparison)
-```
 
-All analyses were built using R (version `r paste0(R.version$major, ".", R.version$minor)`.
-Models were built using the **buildmer** (reference) and **lme4** packages, with plot granularity being set as the predictor
-for total reaction time. A likelihood ratio test revealed that the model including
-plot granularity as a predictor failed to explain significantly more variance than
-a null model ($\chi^2$(`r in_paren(gran_RT_model.df)`) = `r printnum(gran_RT_model.Chisq)`,
-*p* `r printp(gran_RT_model.p, add_equals = TRUE)`). This model has a random intercepts 
-and slopes for participants.
 
-# H2: Granularity can predict higher trust ratings
 
-```{r gran-trust-model, cache=eval_models, cache.comments=FALSE, eval=eval_models, include=FALSE, cache.path="results_summary/html/"}
 
-gran_trust <- buildclmm(trust_slider.response ~ granularity +
-                          (1 + granularity | participant) +
-                          (1 + granularity | dataset),
-                        data = trusty_viz_tidy)
-
-gran_trust_model <- gran_trust@model
-
-gran_trust_comparison <- comparison(gran_trust_model)
-```
-
-```{r gran-trust-anova, eval=TRUE}
+## ----gran-trust-anova, eval=TRUE--------------------------------------------------------------------------------------------------------------------------------------------
 anova_results_ord(gran_trust_model, gran_trust_comparison)
-```
 
-Analyses were built using R (version `r paste0(R.version$major, ".", R.version$minor)`.
-Ordinal model was built using the **buildmer** and **ordinal** packages, with plot granularity being set as the predictor
-for trustworthiness rating. A likelihood ratio test revealed that the model including
-plot granularity as a predictor explained significantly more variance than
-a null model ($\chi^2$(`r in_paren(gran_trust_model.df)`) = `r printnum(gran_trust_model.LR)`,
-*p* `r printp(gran_trust_model.p, add_equals = TRUE)`). Higher granularity plots were
-rated as being more trustworthy. This model has no random intercepts or slopes.
 
-```{r gran_trust_emm-plot, echo=FALSE}
+## ----gran_trust_emm-plot, echo=FALSE----------------------------------------------------------------------------------------------------------------------------------------
+# extract estimated marginal means for E1 chance (magnitude) ratings
 gran_trust_emm <- emmeans(gran_trust_model, ~ granularity) %>% as_tibble()
+
+# generate plot of estimated marginal means for trust ratings in the two granularity conditions
 
 gran_trust_emm %>%
   as_tibble() %>%
@@ -352,6 +319,7 @@ gran_trust_emm %>%
   geom_point(position = position_dodge(width = 0.1), size = 3) +
   geom_line(position = position_dodge(width = 0.1),
             size = 2) +
+  #lims(y = c(-1.8, 2)) +
   labs(y = "Estimated\nMarginal Mean",
        x = "Granularity",
        title = "Ratings of Trustworthiness") +
@@ -360,51 +328,27 @@ gran_trust_emm %>%
   theme_minimal(base_size = 18) +
   theme(legend.position = "none",
         panel.grid = element_blank(),
+        #axis.text.y = element_blank(),
         plot.title = element_text(size=18, hjust = 0.5))
-```
 
-```{r pairwise-comp-gran-rt}
+
+## ----pairwise-comp-gran-rt--------------------------------------------------------------------------------------------------------------------------------------------------
 emmeans(gran_trust_model, ~ granularity)
-```
 
-# H3: Weak correlation between granularity and trustworthiness
 
-```{r, echo=TRUE}
+## ---- echo=TRUE-------------------------------------------------------------------------------------------------------------------------------------------------------------
 rcorr(trusty_viz_tidy$trust_slider.response, trusty_viz_tidy$granularity, type = "pearson")
-```
-
-# H4: Granularity and reaction time predict trustworthiness, but there is no interaction.
 
 
-```{r gran-trust-RT-model, eval=eval_models, cache=eval_models, cache.comments=FALSE, cache.path="results_summary/html/", include=FALSE}
 
-gran_trust_RT <- buildclmm(trust_slider.response ~ granularity*total_RT +
-                          (1 + granularity * total_RT | participant) +
-                          (1 + granularity * total_RT | dataset),
-                        data = trusty_viz_tidy)
 
-gran_trust_RT_model <- gran_trust_RT@model
-
-# manually build null model as above function only works on mixed models and buildclmm() produces a model without random effects
-
-gran_trust_RT_comparison <- clm(trust_slider.response ~ 1, data = trusty_viz_tidy)
-```
-
-```{r gran-trustRT-anova}
+## ----gran-trustRT-anova-----------------------------------------------------------------------------------------------------------------------------------------------------
 anova_results_ord(gran_trust_RT_model, gran_trust_comparison)
-```
 
-Analyses were built using R (version `r paste0(R.version$major, ".", R.version$minor)`.
-Ordinal model was built using the **buildmer** and **ordinal** packages, with plot granularity and total reaction time
-being set as the predictors for trustworthiness rating. A likelihood ratio test revealed that the model including
-plot granularity and total RT as predictors explained significantly more variance than
-a null model ($\chi^2$(`r in_paren(gran_trust_RT_model.df)`) = `r printnum(gran_trust_RT_model.LR)`,
-*p* `r printp(gran_trust_RT_model.p, add_equals = TRUE)`). Higher granularity plots were
-rated as being more trustworthy, and on average peope were faster to respond
-to plots that they subsequently rated as more trustworthy. This model has no random intercepts or
-and slopes for items or participants.
 
-```{r dot-plot-RT}
+## ----dot-plot-RT------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
 
 trusty_viz_tidy %>%
   drop_na(trust_slider.response) %>%
@@ -422,10 +366,9 @@ trusty_viz_tidy %>%
        title = "Distribution of Reaction Times by Trust Rating")
   
 
-```
 
-```{r bar-plot}
 
+## ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 trusty_viz_tidy %>%
   filter(!is.na(trust_slider.response)) %>%
   group_by(trust_slider.response, granularity) %>%
@@ -436,68 +379,14 @@ trusty_viz_tidy %>%
   labs(x = "Trust Rating",
        y = "Count",
        title = "Histogram of Trust Ratings by Granularity")
-```
 
-# Graph Literacy
 
-```{r graph-lit, cache=eval_models, cache.comments=FALSE, eval=eval_models, include=FALSE, cache.path="results_summary/html/"}
-gran_trust_RT_lit <- clm(add.terms(formula(gran_trust_RT_model), "literacy"),
-                         data = trusty_viz_tidy)
 
-lit_comp <- gran_trust_RT_model
-```
 
-```{r lit-comparison, eval=TRUE, echo=FALSE, message=FALSE}
+## ----lit-comparison, eval=TRUE, echo=FALSE, message=FALSE-------------------------------------------------------------------------------------------------------------------
 anova_results_ord(lit_comp, gran_trust_RT_lit)
-```
 
-```{r lit-summary}
+
+## ----lit-summary------------------------------------------------------------------------------------------------------------------------------------------------------------
 summary_extract(gran_trust_RT_lit, "literacy")
-```
-
-We also generate an additional model to test whether the results we found could
-be explained by differences in graph literacy. This model is identical to the 
-experimental model, but includes graph literacy as a fixed effect.
-We found a significant difference between the original model and the one
-including graph literacy as a fixed effect ($\chi^2$(`r in_paren(lit_comp.df)`)
-`r printnum(lit_comp.LR)`, *p* `r printp(lit_comp.p, add_equals = TRUE)`). These 
-results suggest that the effect we found may have been driven by differences in
-graph literacy between participants. A 1 point increase in graph literacy score
-corresponded to a `r printnum(gran_trust_RT_lit.estimate)` increase in trust score,
-(z = `r printnum(gran_trust_RT_lit.statistic)`, *p* `r printp(gran_trust_RT_lit.p.value, add_equals = TRUE)`, `r print_confint(gran_trust_RT_lit.CI)`).
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
