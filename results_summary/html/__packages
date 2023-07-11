@@ -21,3 +21,4 @@ stringr
 forcats
 lubridate
 Matrix
+lmerTest
