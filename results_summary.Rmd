@@ -505,7 +505,7 @@ summary_extract(gran_trust_RT_dot_pitch, "dot_pitch")
 
 We built a model including dot pitch as a fixed effect. Comparing this to the
 experimental model revealed a significant effect of dot pitch ($\chi^2$(`r in_paren(gran_trust_RT_dot_pitch.df)`) = `r printnum(gran_trust_RT_dot_pitch.LR)`, *p* `r printp(gran_trust_RT_dot_pitch.p, add_equals = TRUE)`).
-A 0.1mm increase in dot pitch corresponded to a `r printnum(abs(gran_trust_RT_dot_pitch.estimate/10))` decrease in trust score.
+A 0.1mm increase in dot pitch corresponded to a `r printnum(abs(gran_trust_RT_dot_pitch.estimate/10a))` decrease in trust score.
 ($z$ = `r printnum(gran_trust_RT_dot_pitch.statistic)`, *p* `r printp(gran_trust_RT_dot_pitch.p.value, add_equals = TRUE)`, `r print_confint(gran_trust_RT_dot_pitch.CI)`).
 
 
